@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>视频特效助手</title>
+  <title>AI视频加特效</title>
   <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'Microsoft YaHei',sans-serif;background:#1a1a2e;color:#e0e0e0;height:100vh;overflow:hidden}
@@ -69,7 +69,7 @@ h3{font-size:16px;margin-bottom:12px;color:#aaa}
 <body>
   <div class="app">
     <div class="sidebar">
-      <div class="logo">🎬 视频特效助手</div>
+      <div class="logo">🎬 AI视频加特效</div>
       <div class="nav">
         <button class="nav-btn active" data-step="0">0. 选择模式</button>
         <button class="nav-btn" data-step="1">1. 导入视频</button>
@@ -79,23 +79,17 @@ h3{font-size:16px;margin-bottom:12px;color:#aaa}
       </div>
       <div class="settings">
         <div class="setting-group">
-          <label>AI 引擎</label>
-          <select id="apiProvider" onchange="document.getElementById('apiKeyGroup').style.display=this.value==='ollama'?'none':'block';document.getElementById('ollamaGroup').style.display=this.value==='ollama'?'block':'none'">
+          <label>提取文案（语音转文字）</label>
+          <div style="font-size:11px;color:#F59E0B;margin-bottom:4px">通义千问 DashScope</div>
+          <input type="password" id="sttApiKey" placeholder="DashScope API Key">
+        </div>
+        <div class="setting-group">
+          <label>分析关键词（AI）</label>
+          <select id="apiProvider">
             <option value="deepseek">DeepSeek (推荐)</option>
-            <option value="ollama">本地模型 (Ollama)</option>
             <option value="qwen">通义千问</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
           </select>
-        </div>
-        <div class="setting-group" id="ollamaGroup">
-          <label>本地模型</label>
-          <select id="ollamaModel"><option value="qwen3:8b">qwen3:8b</option></select>
-          <div id="ollamaStatus" style="font-size:11px;margin-top:4px;color:#666">检测中...</div>
-        </div>
-        <div class="setting-group" id="apiKeyGroup">
-          <label>API Key</label>
-          <input type="password" id="apiKey" placeholder="sk-...">
+          <input type="password" id="apiKey" placeholder="API Key" style="margin-top:4px">
         </div>
       </div>
     </div>

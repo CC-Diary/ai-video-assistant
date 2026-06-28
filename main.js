@@ -26,14 +26,18 @@ function getDebugLogPath() {
 }
 
 function debugLog(msg) {
-  try { fs.appendFileSync(getDebugLogPath(), `[${new Date().toISOString()}] ${msg}\n`); } catch {}
+  try {
+    const logPath = '/tmp/vfx-debug.log';
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+    console.log(`[VFX] ${msg}`);
+  } catch {}
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200, height: 800,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
-    title: '视频特效助手', resizable: true
+    title: 'AI视频加特效', resizable: true
   });
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 }
@@ -114,55 +118,91 @@ ipcMain.handle('write-html', async (e, fp, content) => {
   }
 });
 
-// Whisper转录
-ipcMain.handle('whisper-transcribe', async (e, audioPath) => {
-  debugLog(`whisper: ${audioPath} exists=${fs.existsSync(audioPath)}`);
+// 通义千问云端语音转文字（通过qwen-audio模型，分片转录）
+ipcMain.handle('stt-transcribe', async (e, audioPath, apiKey) => {
+  debugLog(`stt-transcribe CALLED: audioPath=${audioPath}`);
   if (!fs.existsSync(audioPath)) {
     return { error: '音频文件不存在: ' + audioPath };
   }
-  return new Promise(resolve => {
-    // 把音频路径和ffmpeg路径都写死进Python脚本
-    const escapedPath = audioPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const ffmpegBin = app.isPackaged
-      ? path.join(process.resourcesPath, 'bin')
-      : path.join(__dirname, 'bin');
-    const script = `
-import sys, os
-sys.path.insert(0, '/opt/homebrew/lib/python3.14/site-packages')
-sys.path.insert(0, '/opt/homebrew/opt/python@3.14/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages')
-os.environ['PATH'] = '${ffmpegBin.replace(/\\/g, '/').replace(/'/g, "")}' + os.pathsep + os.environ.get('PATH', '')
-import whisper, json, opencc
-converter = opencc.OpenCC('t2s')
-model = whisper.load_model('base')
-result = model.transcribe('${escapedPath}', language='zh')
-segments = [{'start': s['start'], 'end': s['end'], 'text': converter.convert(s['text'])} for s in result['segments']]
-print(json.dumps(segments, ensure_ascii=False))
-`;
-    const scriptPath = path.join(app.getPath('temp'), 'whisper_run.py');
-    fs.writeFileSync(scriptPath, script, 'utf-8');
-    // 打包后用完整路径找python3
-    const pythonCandidates = [
-      '/opt/homebrew/bin/python3',
-      '/usr/local/bin/python3',
-      '/usr/bin/python3',
-      'python3'
-    ];
-    let python = 'python3';
-    for (const p of pythonCandidates) {
-      if (fs.existsSync(p)) { python = p; break; }
-    }
-    debugLog(`whisper exec: ${python} ${scriptPath}`);
-    execFile(python, [scriptPath], { timeout: 120000 }, (err, stdout, stderr) => {
-      debugLog(`whisper err=${err?.message}`);
-      debugLog(`whisper stderr=${stderr}`);
-      debugLog(`whisper stdout=${stdout?.substring(0,200)}`);
-      if (err) return resolve({ error: (stderr || err.message) });
-      try {
-        const segments = JSON.parse(stdout.trim());
-        resolve({ success: true, segments });
-      } catch (e) { resolve({ error: '解析转录结果失败: ' + e.message + '\nstdout: ' + stdout?.substring(0,200) }); }
+  const https = require('https');
+
+  // 获取音频时长
+  const vi = await runFfmpeg(['-i', audioPath], 5000);
+  const durMatch = (vi.stderr || '').match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+  if (!durMatch) return { error: '无法获取音频时长' };
+  const totalSec = parseInt(durMatch[1]) * 3600 + parseInt(durMatch[2]) * 60 + parseFloat(durMatch[3]);
+
+  // 按30秒分片
+  const CHUNK = 30;
+  const chunks = Math.ceil(totalSec / CHUNK);
+  const allText = [];
+
+  for (let i = 0; i < chunks; i++) {
+    const start = i * CHUNK;
+    const dur = Math.min(CHUNK, totalSec - start);
+    const chunkPath = audioPath.replace(/\.[^.]+$/, `_chunk${i}.mp4`);
+    const { err: ffErr } = await runFfmpeg([
+      '-y', '-f', 'lavfi', '-i', `color=c=black:s=320x240:d=${Math.ceil(dur)}`,
+      '-ss', String(start), '-t', String(dur), '-i', audioPath,
+      '-shortest', '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '128k',
+      chunkPath
+    ], 60000);
+    if (ffErr) { debugLog(`chunk ${i} ffmpeg error: ${ffErr.message}`); continue; }
+
+    const videoData = fs.readFileSync(chunkPath);
+    const videoBase64 = videoData.toString('base64');
+    try { fs.unlinkSync(chunkPath); } catch {}
+
+    debugLog(`transcribing chunk ${i+1}/${chunks} (${start}s-${start+dur}s)`);
+
+    const text = await new Promise(resolve => {
+      const postData = JSON.stringify({
+        model: 'qwen2.5-omni-7b',
+        messages: [
+          { role: 'system', content: '你是一个语音转文字助手。请将音频内容完整转录为文字，只输出转录的文字内容，不要添加任何解释或格式。' },
+          { role: 'user', content: [
+            { type: 'video_url', video_url: { url: 'data:video/mp4;base64,' + videoBase64 } },
+            { type: 'text', text: '请转录这段音频的全部内容。' }
+          ]}
+        ],
+        max_tokens: 2048
+      });
+      const req = https.request({
+        hostname: 'dashscope.aliyuncs.com',
+        path: '/compatible-mode/v1/chat/completions',
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      }, res => {
+        let data = '';
+        res.on('data', c => { data += c; });
+        res.on('end', () => {
+          try {
+            const r = JSON.parse(data);
+            if (r.choices && r.choices[0] && r.choices[0].message) {
+              resolve(r.choices[0].message.content.trim());
+            } else if (r.error) {
+              debugLog(`chunk ${i} error: ${r.error.message}`);
+              resolve('');
+            } else { resolve(''); }
+          } catch (e) { resolve(''); }
+        });
+      });
+      req.on('error', () => resolve(''));
+      req.setTimeout(120000, () => { req.destroy(); resolve(''); });
+      req.write(postData);
+      req.end();
     });
-  });
+    if (text) allText.push(text);
+  }
+
+  const fullText = allText.join('');
+  if (!fullText) return { error: '转录结果为空' };
+  debugLog(`stt done: ${fullText.length} chars`);
+  return { success: true, text: fullText, segments: [] };
 });
 
 // 选择保存位置
@@ -201,6 +241,31 @@ function findNpx() {
   return process.platform === 'win32' ? 'npx.cmd' : 'npx';
 }
 
+function findChrome() {
+  const candidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ];
+  // puppeteer cache
+  const cacheDir = path.join(require('os').homedir(), '.cache', 'puppeteer', 'chrome');
+  if (fs.existsSync(cacheDir)) {
+    const versions = fs.readdirSync(cacheDir);
+    for (const v of versions) {
+      const macDir = path.join(cacheDir, v, 'chrome-mac-arm64');
+      if (fs.existsSync(macDir)) {
+        const apps = fs.readdirSync(macDir).filter(f => f.endsWith('.app'));
+        for (const app of apps) {
+          const bin = path.join(macDir, app, 'Contents', 'MacOS', app.replace('.app', ''));
+          candidates.push(bin);
+        }
+      }
+    }
+  }
+  for (const p of candidates) { if (fs.existsSync(p)) return p; }
+  return undefined;
+}
+
 function getSpawnOpts(cwd) {
   const nodeModulesPath = app.isPackaged
     ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules')
@@ -219,9 +284,10 @@ ipcMain.handle('hyperframes-render', async (e, dir, out, preview, quality, fps) 
     const f = preview ? 15 : (fps || 30);
     const args = [hfCli, 'render', '-o', out, '--quality', q, '-f', String(f)];
     debugLog(`render exec: ${nodeCmd} ${args.join(' ')}`);
+    debugLog(`chrome path: ${findChrome() || 'not found'}`);
     const child = spawn(nodeCmd, args, {
       cwd: dir, shell: true,
-      env: { ...process.env, NODE_PATH: nodeModulesPath }
+      env: { ...process.env, NODE_PATH: nodeModulesPath, PRODUCER_HEADLESS_SHELL_PATH: findChrome() || '' }
     });
     let log = '';
     child.stdout.on('data', d => { log += d.toString(); });
@@ -243,7 +309,7 @@ ipcMain.handle('hyperframes-snapshot', async (e, dir, time) => {
     debugLog(`snapshot exec: ${nodeCmd} ${args.join(' ')}`);
     const child = spawn(nodeCmd, args, {
       cwd: dir, shell: true,
-      env: { ...process.env, NODE_PATH: nodeModulesPath }
+      env: { ...process.env, NODE_PATH: nodeModulesPath, PRODUCER_HEADLESS_SHELL_PATH: findChrome() || '' }
     });
     let log = '';
     child.stdout.on('data', d => { log += d.toString(); });
@@ -277,49 +343,6 @@ ipcMain.handle('copy-fonts', async (e, projectDir) => {
     }
     return { success: true };
   } catch (err) { return { error: err.message }; }
-});
-
-// 检查Ollama
-ipcMain.handle('check-ollama', async () => {
-  return new Promise(resolve => {
-    const req = require('http').get('http://127.0.0.1:11434/api/tags', res => {
-      let data = '';
-      res.on('data', c => { data += c; });
-      res.on('end', () => {
-        try { const models = JSON.parse(data).models || []; resolve({ available: true, models: models.map(m => m.name) }); }
-        catch { resolve({ available: false, models: [] }); }
-      });
-    });
-    req.on('error', () => resolve({ available: false, models: [] }));
-    req.setTimeout(3000, () => { req.destroy(); resolve({ available: false, models: [] }); });
-  });
-});
-
-// 调用Ollama
-ipcMain.handle('call-ollama', async (e, model, prompt) => {
-  debugLog(`ollama: model=${model} prompt_len=${prompt.length}`);
-  return new Promise(resolve => {
-    const postData = JSON.stringify({ model, prompt, stream: false });
-    const req = require('http').request({
-      hostname: '127.0.0.1', port: 11434, path: '/api/generate',
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
-    }, res => {
-      let data = '';
-      res.on('data', c => { data += c; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          debugLog(`ollama response: ${parsed.response?.substring(0,100)}`);
-          resolve({ success: true, response: parsed.response });
-        }
-        catch { resolve({ error: '解析失败' }); }
-      });
-    });
-    req.on('error', err => resolve({ error: err.message }));
-    req.setTimeout(300000, () => { req.destroy(); resolve({ error: '超时（5分钟），模型可能还在加载' }); });
-    req.write(postData);
-    req.end();
-  });
 });
 
 // 检查ffmpeg

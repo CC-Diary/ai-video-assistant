@@ -2,17 +2,17 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1920,height=1080">
+<meta name="viewport" content="width={{WIDTH}},height={{HEIGHT}}">
 <title>{{TITLE}}</title>
 <style>
 @font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Regular.ttf');font-weight:400}
 @font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Bold.ttf');font-weight:700}
 @font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Black.ttf');font-weight:900}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#000;width:1920px;height:1080px;overflow:hidden;font-family:'Noto Sans SC',sans-serif}
-.video-bg{position:absolute;top:0;left:0;width:1920px;height:1080px;object-fit:cover;z-index:1}
-.dark-overlay{position:absolute;top:0;left:0;width:960px;height:1080px;background:linear-gradient(90deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.55) 60%,rgba(0,0,0,0) 100%);z-index:2;opacity:0}
-.effects-layer{position:absolute;top:0;left:0;width:960px;height:1080px;z-index:10;overflow:hidden}
+body{background:#000;width:{{WIDTH}}px;height:{{HEIGHT}}px;overflow:hidden;font-family:'Noto Sans SC',sans-serif}
+.video-bg{position:absolute;top:0;left:0;width:{{WIDTH}}px;height:{{HEIGHT}}px;object-fit:cover;z-index:1}
+.dark-overlay{position:absolute;top:0;left:0;width:{{WIDTH}}px;height:{{HEIGHT}}px;{{OVERLAY_BG}}z-index:2;opacity:0}
+.effects-layer{position:absolute;top:0;left:0;width:{{WIDTH}}px;height:{{HEIGHT}}px;{{FX_TOP}}z-index:10;overflow:hidden}
 .tag{position:absolute;top:80px;left:80px;display:flex;align-items:center;gap:16px;opacity:0}
 .tag-line{width:4px;height:56px;background:#3B82F6;border-radius:2px}
 .tag-text .en{font-size:22px;font-weight:700;color:#3B82F6;letter-spacing:4px;text-transform:uppercase}
@@ -47,10 +47,11 @@ body{background:#000;width:1920px;height:1080px;overflow:hidden;font-family:'Not
 .cta-en{font-size:24px;font-weight:700;color:#3B82F6;letter-spacing:3px;text-transform:uppercase}
 .cta-main{font-size:96px;font-weight:900;color:#fff;line-height:1.1;margin:8px 0}
 .cta-sub{font-size:28px;color:rgba(255,255,255,0.5)}
+{{PORTRAIT_CSS}}
 </style>
 </head>
 <body>
-<div data-composition-id="root" data-start="0" data-duration="{{DURATION}}" data-width="1920" data-height="1080">
+<div data-composition-id="root" data-start="0" data-duration="{{DURATION}}" data-width="{{WIDTH}}" data-height="{{HEIGHT}}">
 <video data-hf-id="hf-video" id="main-video" class="video-bg clip" src="source.mp4" data-start="0" data-duration="{{DURATION}}" autoplay muted loop></video>
 <div id="dark-overlay" class="dark-overlay clip" data-start="0" data-duration="{{DURATION}}"></div>
 <div class="effects-layer clip" data-start="0" data-duration="{{DURATION}}">

@@ -99,15 +99,20 @@ $('#btnExtractKeywords').addEventListener('click', async () => {
   $('#analysisStatus').textContent = '⏳ 分析文案+设计特效...';
 
   try {
-    // 先用Whisper获取真实时间点
+    // 云端STT转录
     let segments = [];
+    const sttKey = (await ipcRenderer.invoke('load-config')).sttApiKey || '';
+    console.log('[STT] sttKey:', sttKey ? sttKey.substring(0,8) + '...' : 'EMPTY');
+    if (!sttKey) { alert('请先在左侧设置中填写提取文案的API Key'); return; }
     const audioPath = path.join(state.projectDir, 'audio.wav');
     if (!fs.existsSync(audioPath)) {
       await ipcRenderer.invoke('extract-audio', state.videoPath, audioPath);
     }
-    const transRes = await ipcRenderer.invoke('whisper-transcribe', audioPath);
-    if (transRes.success && transRes.segments) {
-      segments = transRes.segments;
+    console.log('[STT] calling stt-transcribe with:', audioPath);
+    const transRes = await ipcRenderer.invoke('stt-transcribe', audioPath, sttKey);
+    console.log('[STT] result:', JSON.stringify(transRes).substring(0, 200));
+    if (transRes.success && transRes.text) {
+      segments = [{ text: transRes.text, start: 0, end: 0 }];
     }
 
     // 用模型分析文案内容（不指定时间点）
@@ -171,7 +176,7 @@ $('#btnExtractKeywords').addEventListener('click', async () => {
     state.effectsPlan.sort((a, b) => a.time - b.time);
 
     const vi = await ipcRenderer.invoke('get-video-info', state.videoPath);
-    state.htmlCode = generateSmartHTML(state.effectsPlan, vi.duration);
+    state.htmlCode = generateSmartHTML(state.effectsPlan, vi.duration, vi.width, vi.height);
 
     $('#keywordsInput').value = [state.title, state.subtitle].join(',');
     $('#designPlan').textContent = `特效方案 (${state.effectsPlan.length}个):\n` +
@@ -191,7 +196,7 @@ $('#btnExtractKeywords').addEventListener('click', async () => {
 $('#btnAnalyze').addEventListener('click', async () => {
   const provider = $('#apiProvider').value;
   const apiKey = $('#apiKey').value;
-  if (provider !== 'ollama' && !apiKey) return alert('请填API Key');
+  if (!apiKey) return alert('请填API Key');
 
   console.log('[DEBUG] mode:', state.mode, 'window._debugMode:', window._debugMode);
   if (state.mode !== 'subtitle' && window._debugMode === 'subtitle') {
@@ -212,14 +217,15 @@ $('#btnAnalyze').addEventListener('click', async () => {
     if (manualText) {
       transcriptText = manualText;
     } else {
+      const sttKey = (await ipcRenderer.invoke('load-config')).sttApiKey || '';
+      if (!sttKey) throw new Error('请先在左侧设置中填写提取文案的API Key');
       $('#analysisStatus').textContent = '⏳ 提取音频...';
       const audioPath = path.join(state.projectDir, 'audio.wav');
       await ipcRenderer.invoke('extract-audio', state.videoPath, audioPath);
-      $('#analysisStatus').textContent = '⏳ Whisper转录中...';
-      const transRes = await ipcRenderer.invoke('whisper-transcribe', audioPath);
+      $('#analysisStatus').textContent = '⏳ 云端转录中...';
+      const transRes = await ipcRenderer.invoke('stt-transcribe', audioPath, sttKey);
       if (transRes.error) throw new Error('转录失败: ' + transRes.error);
-      state.segments = transRes.segments;
-      transcriptText = state.segments.map(s => s.text).join('');
+      transcriptText = transRes.text || '';
     }
 
     // 显示文案，让用户确认
@@ -238,7 +244,7 @@ $('#btnAnalyze').addEventListener('click', async () => {
 
 $('#btnConfirmDesign').addEventListener('click', async () => {
   const vi = await ipcRenderer.invoke('get-video-info', state.videoPath);
-  state.htmlCode = generateSmartHTML(state.effectsPlan || [], vi.duration);
+  state.htmlCode = generateSmartHTML(state.effectsPlan || [], vi.duration, vi.width, vi.height);
   goStep(3);
   $('#htmlCodePreview').value = state.htmlCode;
 });
@@ -293,8 +299,11 @@ $('#btnRegenerate').addEventListener('click', async () => {
     if (segs2.length === 0) {
       const audioPath2 = path.join(state.projectDir, 'audio.wav');
       if (fs.existsSync(audioPath2)) {
-        const tr = await ipcRenderer.invoke('whisper-transcribe', audioPath2);
-        if (tr.success) segs2 = tr.segments || [];
+        const sttKey2 = (await ipcRenderer.invoke('load-config')).sttApiKey || '';
+        if (sttKey2) {
+          const tr = await ipcRenderer.invoke('stt-transcribe', audioPath2, sttKey2);
+          if (tr.success && tr.text) segs2 = [{ text: tr.text, start: 0, end: 0 }];
+        }
       }
     }
     state.effectsPlan = rawEffects2.map(e => {
@@ -317,7 +326,7 @@ $('#btnRegenerate').addEventListener('click', async () => {
     state.subtitle = parsed.subtitle || state.subtitle;
 
     const vi = await ipcRenderer.invoke('get-video-info', state.videoPath);
-    state.htmlCode = generateSmartHTML(state.effectsPlan, vi.duration);
+    state.htmlCode = generateSmartHTML(state.effectsPlan, vi.duration, vi.width, vi.height);
 
     $('#designPlan').textContent = `特效方案 (${state.effectsPlan.length}个):\n` +
       state.effectsPlan.map(e => `${e.time}s: ${e.type} - ${e.en||e.zh||e.text||e.num||''}`).join('\n');
@@ -628,7 +637,7 @@ ${effectsAnim}
 }
 
 // ==================== 智能特效生成（模板替换，一比一复刻手动效果） ====================
-function generateSmartHTML(effects, duration) {
+function generateSmartHTML(effects, duration, width, height) {
   // 读取模板（兼容不同__dirname路径）
   let templatePath = path.join(__dirname, 'template.html');
   if (!fs.existsSync(templatePath)) {
@@ -708,6 +717,27 @@ function generateSmartHTML(effects, duration) {
   const replace = (key, val) => { html = html.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), String(val)); };
   replace('TITLE', state.title || '特效');
   replace('DURATION', duration);
+  replace('WIDTH', width || 1920);
+  replace('HEIGHT', height || 1080);
+  const isPortrait = (height || 1080) > (width || 1920);
+  if (isPortrait) {
+    replace('OVERLAY_BG', 'background:linear-gradient(180deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.55) 60%,rgba(0,0,0,0) 100%);');
+    replace('FX_TOP', 'padding-top:80px;');
+    replace('PORTRAIT_CSS', `
+.effects-layer{text-align:center}
+.tag{left:50%;transform:translateX(-50%)}
+.big-title{left:50%;transform:translateX(-50%);text-align:center}
+.compare-card{left:50%;transform:translateX(-50%)}
+.chart-wrap{left:50%;transform:translateX(-50%);text-align:center}
+.feature-grid{left:50%;transform:translateX(-50%)}
+.quote-card{left:50%;transform:translateX(-50%);text-align:center;border-left:none;border-bottom:5px solid #F59E0B;border-radius:0 0 14px 14px}
+.cta-wrap{left:50%;top:40%;transform:translate(-50%,-50%);text-align:center}
+`);
+  } else {
+    replace('OVERLAY_BG', 'background:linear-gradient(90deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.55) 60%,rgba(0,0,0,0) 100%);');
+    replace('FX_TOP', '');
+    replace('PORTRAIT_CSS', '');
+  }
   replace('KW1_EN', tag1En);
   replace('KW1_ZH', tag1Zh);
   replace('KW2_EN', kw2En);
@@ -762,64 +792,40 @@ function parseJSON(text) {
 }
 
 async function callAI(provider, apiKey, prompt) {
-  // 清理API Key中的非法字符
   apiKey = apiKey.replace(/[^\x00-\x7F]/g, '').trim();
-
-  if (provider === 'ollama') {
-    const model = $('#ollamaModel').value || 'qwen3:8b';
-    const res = await ipcRenderer.invoke('call-ollama', model, prompt);
-    if (res.error) throw new Error(res.error);
-    return res.response;
-  }
-  let url, headers, body;
+  let url, body;
   if (provider === 'deepseek') {
     url = 'https://api.deepseek.com/chat/completions';
-    headers = { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' };
     body = JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1000 });
-  } else if (provider === 'qwen') {
-    url = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-    headers = { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' };
-    body = JSON.stringify({ model: 'qwen-plus', messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1000 });
-  } else if (provider === 'openai') {
-    url = 'https://api.openai.com/v1/chat/completions';
-    headers = { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' };
-    body = JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1000 });
   } else {
-    url = 'https://api.anthropic.com/v1/messages';
-    headers = { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' };
-    body = JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] });
+    url = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+    body = JSON.stringify({ model: 'qwen-plus', messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1000 });
   }
-  const resp = await fetch(url, { method: 'POST', headers, body });
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body
+  });
   const data = await resp.json();
-  return provider === 'anthropic' ? data.content[0].text : data.choices[0].message.content;
+  return data.choices[0].message.content;
 }
 
 // ==================== 启动检测 ====================
 (async function() {
-  // 加载保存的配置
   try {
     const config = await ipcRenderer.invoke('load-config');
-    if (config.apiProvider) $('#apiProvider').value = config.apiProvider;
-    if (config.apiKey) $('#apiKey').value = config.apiKey;
-    // 触发provider切换事件
-    $('#apiProvider').dispatchEvent(new Event('change'));
+    if (config.aiProvider) $('#apiProvider').value = config.aiProvider;
+    if (config.aiApiKey) $('#apiKey').value = config.aiApiKey;
+    if (config.sttApiKey) $('#sttApiKey').value = config.sttApiKey;
   } catch {}
 
-  const s = await ipcRenderer.invoke('check-ollama');
-  if (s.available && s.models.length) {
-    $('#ollamaStatus').textContent = '✅ ' + s.models.join(', ');
-    $('#ollamaStatus').style.color = '#22C55E';
-    $('#ollamaModel').innerHTML = s.models.map(m => `<option value="${m}">${m}</option>`).join('');
-  } else {
-    $('#ollamaStatus').textContent = '❌ 未检测到Ollama';
-    $('#ollamaStatus').style.color = '#EF4444';
-  }
-
-  // API Key/Provider 变更时自动保存
   $('#apiProvider').addEventListener('change', () => {
-    ipcRenderer.invoke('save-config', { apiProvider: $('#apiProvider').value });
+    ipcRenderer.invoke('save-config', { aiProvider: $('#apiProvider').value });
   });
   $('#apiKey').addEventListener('input', () => {
-    ipcRenderer.invoke('save-config', { apiKey: $('#apiKey').value });
+    ipcRenderer.invoke('save-config', { aiApiKey: $('#apiKey').value });
+  });
+  $('#sttApiKey').addEventListener('input', () => {
+    ipcRenderer.invoke('save-config', { sttApiKey: $('#sttApiKey').value });
   });
 })();

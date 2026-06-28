@@ -1,15 +1,15 @@
 {
-  "name": "video-effects-studio",
+  "name": "ai-video-effects-online",
   "version": "1.0.0",
-  "description": "视频特效助手",
+  "description": "AI视频加特效（联网版本）",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build:mac": "electron-builder --mac"
   },
   "build": {
-    "appId": "com.videoeffects.studio",
-    "productName": "视频特效助手",
+    "appId": "com.aivideoeffects.online",
+    "productName": "AI视频加特效（联网版）",
     "directories": {
       "output": "dist"
     },
@@ -44,7 +44,7 @@
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
-    "archiver": "^8.0.0",
+    "dashscope": "^1.0.1",
     "hyperframes": "^0.7.17"
   }
 }
