@@ -1,0 +1,24 @@
+# 视频特效助手
+
+## 使用方法
+
+1. 双击 `一键打包.bat`，等待安装完成
+2. 打开 `dist/` 目录，运行安装包
+3. 打开软件，填写 API Key（左侧设置栏）
+4. 拖入视频 → AI分析 → 预览 → 导出
+
+## 支持的AI服务
+
+| 服务 | 注册地址 | 费用 |
+|------|---------|------|
+| DeepSeek | platform.deepseek.com | ¥1/百万token |
+| 通义千问 | dashscope.console.aliyun.com | ¥0.8/百万token |
+| OpenAI | platform.openai.com | $2.5/百万token |
+| Anthropic | console.anthropic.com | $3/百万token |
+
+推荐使用 DeepSeek，便宜好用。
+
+## 系统要求
+
+- Windows 10/11
+- 需要联网（调用云端AI）

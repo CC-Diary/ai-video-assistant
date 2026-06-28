@@ -1,0 +1,50 @@
+{
+  "name": "video-effects-studio",
+  "version": "1.0.0",
+  "description": "视频特效助手",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.videoeffects.studio",
+    "productName": "视频特效助手",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "node_modules/hyperframes/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/**"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
+        "from": "fonts",
+        "to": "fonts"
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": null,
+      "hardenedRuntime": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "hyperframes": "^0.7.17"
+  }
+}

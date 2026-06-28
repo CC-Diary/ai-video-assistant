@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>视频特效助手</title>
+  <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Microsoft YaHei',sans-serif;background:#1a1a2e;color:#e0e0e0;height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+.sidebar{width:240px;background:#12121f;border-right:1px solid #2a2a3e;display:flex;flex-direction:column;padding:20px 0}
+.logo{padding:0 20px 24px;font-size:18px;font-weight:700;color:#F59E0B;border-bottom:1px solid #2a2a3e}
+.nav{padding:16px 0;flex:1}
+.nav-btn{display:block;width:100%;padding:12px 20px;border:none;background:none;color:#888;font-size:14px;text-align:left;cursor:pointer;transition:all .2s}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.05)}
+.nav-btn.active{color:#F59E0B;background:rgba(245,158,11,.1);border-right:3px solid #F59E0B}
+.nav-btn.done{color:#22C55E}
+.settings{padding:16px 20px;border-top:1px solid #2a2a3e}
+.setting-group{margin-bottom:12px}
+.setting-group label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.setting-group input,.setting-group select{width:100%;padding:8px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#fff;font-size:13px}
+.main{flex:1;overflow-y:auto;padding:32px}
+.step{display:none}.step.active{display:block}
+h2{font-size:24px;margin-bottom:24px;color:#fff}
+h3{font-size:16px;margin-bottom:12px;color:#aaa}
+.dropzone{border:2px dashed #333;border-radius:16px;padding:60px;text-align:center;cursor:pointer;transition:all .3s}
+.dropzone:hover{border-color:#F59E0B;background:rgba(245,158,11,.05)}
+.dropzone-icon{font-size:48px;margin-bottom:16px}
+.dropzone-text{font-size:18px;color:#ccc}
+.dropzone-hint{font-size:13px;color:#666;margin-top:8px}
+.video-info{margin-top:24px;background:#12121f;border-radius:12px;padding:20px;border:1px solid #2a2a3e}
+.info-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e1e30}
+.info-row:last-child{border:0}
+.info-row span:first-child{color:#888}
+.info-row span:last-child{color:#fff;font-weight:500}
+.status-bar{margin-top:16px;padding:12px 16px;background:#1e1e30;border-radius:8px;font-size:14px;color:#F59E0B}
+.analysis-panel{display:flex;flex-direction:column;gap:20px}
+.panel-section{background:#12121f;border-radius:12px;padding:20px;border:1px solid #2a2a3e}
+.transcript-box{max-height:200px;overflow-y:auto;font-size:14px;line-height:1.8;color:#ccc;white-space:pre-wrap}
+.keywords-list{display:flex;flex-wrap:wrap;gap:8px}
+.keyword-tag{background:rgba(245,158,11,.15);color:#F59E0B;padding:6px 14px;border-radius:20px;font-size:13px}
+.design-plan{font-size:14px;line-height:1.8;color:#ccc;white-space:pre-wrap}
+.preview-panel{display:flex;flex-direction:column;gap:20px}
+.preview-image{background:#0a0a15;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;border:1px solid #2a2a3e}
+.preview-image img{width:100%;height:100%;object-fit:contain}
+.preview-placeholder{color:#555;font-size:14px}
+.preview-controls{display:flex;align-items:center;gap:16px}
+.preview-time{display:flex;align-items:center;gap:8px;font-size:14px;color:#888}
+.preview-time input{width:80px;padding:6px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#fff;text-align:center}
+.html-editor textarea{width:100%;height:250px;background:#0a0a15;border:1px solid #2a2a3e;border-radius:8px;padding:16px;color:#ccc;font-family:'SF Mono',monospace;font-size:12px;line-height:1.5;resize:vertical}
+.export-panel{display:flex;flex-direction:column;gap:20px}
+.export-settings{display:flex;gap:20px}
+.setting-row{display:flex;align-items:center;gap:12px}
+.setting-row label{color:#888;font-size:14px}
+.setting-row select{padding:8px 12px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px}
+.progress-area{background:#12121f;border-radius:12px;padding:20px;border:1px solid #2a2a3e}
+.progress-bar{height:8px;background:#1e1e30;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#F59E0B,#22C55E);width:0%;transition:width .3s}
+.progress-text{margin-top:12px;font-size:13px;color:#888;text-align:center}
+.export-result{display:flex;align-items:center;gap:16px}
+.success-msg{color:#22C55E;font-size:16px;font-weight:600}
+.btn{padding:10px 24px;border:1px solid #333;border-radius:8px;background:#1e1e30;color:#ccc;font-size:14px;cursor:pointer;transition:all .2s}
+.btn:hover{background:#2a2a3e;color:#fff}
+.btn.primary{background:#F59E0B;color:#000;border-color:#F59E0B;font-weight:600}
+.btn.primary:hover{background:#d4880a}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-row{display:flex;gap:12px;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <div class="logo">🎬 视频特效助手</div>
+      <div class="nav">
+        <button class="nav-btn active" data-step="0">0. 选择模式</button>
+        <button class="nav-btn" data-step="1">1. 导入视频</button>
+        <button class="nav-btn" data-step="2">2. AI分析</button>
+        <button class="nav-btn" data-step="3">3. 预览确认</button>
+        <button class="nav-btn" data-step="4">4. 导出</button>
+      </div>
+      <div class="settings">
+        <div class="setting-group">
+          <label>AI 引擎</label>
+          <select id="apiProvider" onchange="document.getElementById('apiKeyGroup').style.display=this.value==='ollama'?'none':'block';document.getElementById('ollamaGroup').style.display=this.value==='ollama'?'block':'none'">
+            <option value="deepseek">DeepSeek (推荐)</option>
+            <option value="ollama">本地模型 (Ollama)</option>
+            <option value="qwen">通义千问</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        </div>
+        <div class="setting-group" id="ollamaGroup">
+          <label>本地模型</label>
+          <select id="ollamaModel"><option value="qwen3:8b">qwen3:8b</option></select>
+          <div id="ollamaStatus" style="font-size:11px;margin-top:4px;color:#666">检测中...</div>
+        </div>
+        <div class="setting-group" id="apiKeyGroup">
+          <label>API Key</label>
+          <input type="password" id="apiKey" placeholder="sk-...">
+        </div>
+      </div>
+    </div>
+    <div class="main">
+      <!-- Step 0: 选择模式 -->
+      <div class="step active" id="step0">
+        <h2>选择模式</h2>
+        <div style="display:flex;gap:24px;margin-top:40px">
+          <div id="modeA" style="flex:1;background:#12121f;border:2px solid #333;border-radius:16px;padding:40px;cursor:pointer;text-align:center;transition:all .3s" onclick="selectMode('talk')">
+            <div style="font-size:48px;margin-bottom:16px">🎙️</div>
+            <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px">口播加特效</div>
+            <div style="font-size:14px;color:#888;line-height:1.6">人在右边，关键词特效在左边<br>深色遮罩跟着特效走<br>不需要字幕</div>
+          </div>
+          <div id="modeB" style="flex:1;background:#12121f;border:2px solid #333;border-radius:16px;padding:40px;cursor:pointer;text-align:center;transition:all .3s" onclick="selectMode('subtitle')">
+            <div style="font-size:48px;margin-bottom:16px">📝</div>
+            <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px">配字幕特效</div>
+            <div style="font-size:14px;color:#888;line-height:1.6">自动转录音频识别关键词<br>字幕+特效同步时间点<br>适合讲解类视频</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1: 导入 -->
+      <div class="step" id="step1">
+        <h2>1. 导入视频 <span id="modeIndicator" style="font-size:14px;color:#F59E0B;font-weight:400"></span></h2>
+        <div class="dropzone" id="dropzone">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-text">点击选择视频文件</div>
+          <div class="dropzone-hint">支持 MP4, MOV, AVI, MKV, WebM</div>
+          <button class="btn primary" style="margin-top:20px;padding:14px 40px;font-size:16px" id="btnSelectFile">选择视频文件</button>
+        </div>
+        <div class="video-info" id="videoInfo" hidden>
+          <div class="info-row"><span>文件名:</span><span id="infoName">-</span></div>
+          <div class="info-row"><span>分辨率:</span><span id="infoRes">-</span></div>
+          <div class="info-row"><span>时长:</span><span id="infoDuration">-</span></div>
+          <div class="info-row"><span>编码:</span><span id="infoCodec">-</span></div>
+        </div>
+        <div class="status-bar" id="statusText">等待导入视频...</div>
+        <div class="btn-row">
+          <button class="btn primary" id="btnGoStep2" disabled onclick="document.querySelector('[data-step=&quot;2&quot;]').click()">下一步：AI分析 →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: AI分析 -->
+      <div class="step" id="step2">
+        <h2>2. AI分析</h2>
+        <div class="analysis-panel">
+          <div class="panel-section">
+            <h3>转录文本</h3>
+            <div class="transcript-box" id="transcriptBox">-</div>
+          </div>
+          <div class="panel-section">
+            <h3>转录文本（可直接粘贴口播文案）</h3>
+            <textarea id="manualTranscript" spellcheck="false" style="width:100%;height:120px;background:#0a0a15;border:1px solid #2a2a3e;border-radius:8px;padding:12px;color:#ccc;font-size:14px;resize:vertical" placeholder="直接粘贴口播文案，比Whisper转录更准确&#10;留空则自动用Whisper转录"></textarea>
+          </div>
+          <div class="panel-section">
+            <h3>关键词（可修改，修改后点重新生成）</h3>
+            <input type="text" id="keywordsInput" style="width:100%;padding:10px;background:#0a0a15;border:1px solid #2a2a3e;border-radius:8px;color:#F59E0B;font-size:16px;font-weight:600" placeholder="用逗号分隔">
+          </div>
+          <div class="panel-section">
+            <h3>特效设计方案</h3>
+            <div class="design-plan" id="designPlan">-</div>
+          </div>
+          <div class="panel-section">
+            <h3>生成的HTML代码（可手动修改）</h3>
+            <textarea id="htmlCode" spellcheck="false"></textarea>
+          </div>
+          <div class="status-bar" id="analysisStatus">等待分析...</div>
+          <div class="btn-row">
+            <button class="btn primary" id="btnAnalyze">开始AI分析</button>
+            <button class="btn primary" id="btnExtractKeywords" disabled>确认文案，提取关键词</button>
+            <button class="btn" id="btnRegenerate" disabled>修改关键词后重新生成</button>
+            <button class="btn primary" id="btnConfirmDesign" disabled>确认方案，下一步 →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: 预览 -->
+      <div class="step" id="step3">
+        <h2>3. 预览确认</h2>
+        <div class="preview-panel">
+          <div style="background:#0a0a15;border-radius:12px;overflow:hidden;border:1px solid #2a2a3e;margin-bottom:12px">
+            <video id="previewVideo" controls style="width:100%;display:block;max-height:360px" hidden></video>
+            <div id="previewPlaceholder" style="padding:40px;text-align:center;color:#555;font-size:13px">点击下方按钮生成预览视频</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <button class="btn primary" id="btnPreviewVideo" style="padding:8px 20px;font-size:13px">生成预览（低画质）</button>
+            <span id="previewStatus" style="font-size:12px;color:#888"></span>
+          </div>
+          <div class="panel-section" style="padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h3 style="margin:0;font-size:13px">HTML代码</h3>
+              <button class="btn" id="btnSyncCode" style="padding:4px 12px;font-size:12px">同步并重新预览</button>
+            </div>
+            <textarea id="htmlCodePreview" spellcheck="false" style="width:100%;height:120px;background:#0a0a15;border:1px solid #2a2a3e;border-radius:6px;padding:10px;color:#ccc;font-family:monospace;font-size:11px;resize:vertical"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" id="btnConfirmPreview">确认预览，下一步导出 →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: 导出 -->
+      <div class="step" id="step4">
+        <h2>4. 导出视频</h2>
+        <div class="export-panel">
+          <div class="export-settings" style="display:flex;gap:20px;flex-wrap:wrap">
+            <div class="setting-row"><label>输出格式:</label><select id="exportFormat"><option value="mp4">MP4 (H.264)</option><option value="mov">MOV (透明通道)</option></select></div>
+            <div class="setting-row"><label>画质:</label><select id="exportQuality"><option value="high">原画质</option><option value="standard">中画质</option><option value="draft">低画质</option></select></div>
+            <div class="setting-row"><label>帧率:</label><select id="exportFps"><option value="30">30fps</option><option value="60">60fps</option></select></div>
+          </div>
+          <div class="progress-area" id="progressArea" hidden>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText">准备中...</div>
+          </div>
+          <button class="btn primary" style="padding:14px 40px;font-size:16px" id="btnExport">导出视频</button>
+          <div class="export-result" id="exportResult" hidden>
+            <div class="success-msg">✅ 导出完成!</div>
+            <button class="btn" id="btnOpenFile">打开视频文件</button>
+            <button class="btn" id="btnCleanup">清理临时文件</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+  <script>
+    // 页面加载时初始化API选项状态
+    document.addEventListener('DOMContentLoaded', function() {
+      var sel = document.getElementById('apiProvider');
+      if (sel) sel.dispatchEvent(new Event('change'));
+    });
+  </script>
+</body>
+</html>

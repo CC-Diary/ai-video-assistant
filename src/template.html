@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920,height=1080">
+<title>{{TITLE}}</title>
+<style>
+@font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Regular.ttf');font-weight:400}
+@font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Bold.ttf');font-weight:700}
+@font-face{font-family:'Noto Sans SC';src:url('fonts/NotoSansSC-Black.ttf');font-weight:900}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;width:1920px;height:1080px;overflow:hidden;font-family:'Noto Sans SC',sans-serif}
+.video-bg{position:absolute;top:0;left:0;width:1920px;height:1080px;object-fit:cover;z-index:1}
+.dark-overlay{position:absolute;top:0;left:0;width:960px;height:1080px;background:linear-gradient(90deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.55) 60%,rgba(0,0,0,0) 100%);z-index:2;opacity:0}
+.effects-layer{position:absolute;top:0;left:0;width:960px;height:1080px;z-index:10;overflow:hidden}
+.tag{position:absolute;top:80px;left:80px;display:flex;align-items:center;gap:16px;opacity:0}
+.tag-line{width:4px;height:56px;background:#3B82F6;border-radius:2px}
+.tag-text .en{font-size:22px;font-weight:700;color:#3B82F6;letter-spacing:4px;text-transform:uppercase}
+.tag-text .zh{font-size:18px;color:rgba(255,255,255,0.7);margin-top:2px}
+.big-title{position:absolute;top:180px;left:80px;opacity:0}
+.big-title .en-sub{font-size:24px;font-weight:700;color:#3B82F6;letter-spacing:3px;text-transform:uppercase}
+.big-title .main{font-size:108px;font-weight:900;color:#fff;line-height:1.1;margin:8px 0}
+.big-title .zh-sub{font-size:28px;color:rgba(255,255,255,0.55);font-weight:400}
+.compare-card{position:absolute;top:200px;left:80px;display:flex;gap:40px;opacity:0}
+.compare-item{background:rgba(255,255,255,0.06);border-radius:16px;padding:40px 48px;min-width:340px;border:1px solid rgba(255,255,255,0.08)}
+.compare-item.before{border-left:4px solid #EF4444}
+.compare-item.now{border-left:4px solid #22C55E}
+.compare-label{font-size:18px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+.compare-item.before .compare-label{color:#EF4444}
+.compare-item.now .compare-label{color:#22C55E}
+.compare-value{font-size:72px;font-weight:900;color:#fff;line-height:1}
+.compare-desc{font-size:22px;color:rgba(255,255,255,0.5);margin-top:12px}
+.chart-wrap{position:absolute;top:220px;left:80px;width:700px;opacity:0}
+.chart-title{font-size:22px;color:rgba(255,255,255,0.5);margin-bottom:24px;font-weight:400}
+.chart-bar{width:100%;height:80px;background:rgba(255,255,255,0.06);border-radius:12px;position:relative;overflow:hidden}
+.chart-bar-main{height:100%;background:linear-gradient(90deg,#22C55E,#4ADE80);border-radius:12px;width:0%;position:relative}
+.chart-number{position:absolute;right:-120px;top:50%;transform:translateY(-50%);font-size:64px;font-weight:900;color:#22C55E;white-space:nowrap}
+.feature-grid{position:absolute;top:180px;left:80px;display:grid;grid-template-columns:1fr 1fr;gap:20px;opacity:0}
+.feature-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:32px 36px;min-width:300px}
+.feature-icon{font-size:36px;margin-bottom:12px}
+.feature-name{font-size:26px;font-weight:700;color:#fff;margin-bottom:6px}
+.feature-desc{font-size:18px;color:rgba(255,255,255,0.45)}
+.quote-card{position:absolute;top:280px;left:80px;padding:36px 48px;max-width:650px;border-left:5px solid #F59E0B;background:rgba(245,158,11,0.08);border-radius:0 14px 14px 0;opacity:0}
+.quote-text{font-size:40px;font-weight:900;color:#fff;line-height:1.4}
+.quote-author{font-size:20px;color:rgba(255,255,255,0.4);margin-top:16px}
+.cta-wrap{position:absolute;top:50%;left:80px;transform:translateY(-50%);opacity:0}
+.cta-en{font-size:24px;font-weight:700;color:#3B82F6;letter-spacing:3px;text-transform:uppercase}
+.cta-main{font-size:96px;font-weight:900;color:#fff;line-height:1.1;margin:8px 0}
+.cta-sub{font-size:28px;color:rgba(255,255,255,0.5)}
+</style>
+</head>
+<body>
+<div data-composition-id="root" data-start="0" data-duration="{{DURATION}}" data-width="1920" data-height="1080">
+<video data-hf-id="hf-video" id="main-video" class="video-bg clip" src="source.mp4" data-start="0" data-duration="{{DURATION}}" autoplay muted loop></video>
+<div id="dark-overlay" class="dark-overlay clip" data-start="0" data-duration="{{DURATION}}"></div>
+<div class="effects-layer clip" data-start="0" data-duration="{{DURATION}}">
+
+  <div class="tag clip" id="tag1" data-start="0.3" data-duration="{{T1_DUR}}">
+    <div class="tag-line"></div>
+    <div class="tag-text"><div class="en">{{KW1_EN}}</div><div class="zh">{{KW1_ZH}}</div></div>
+  </div>
+  <div class="big-title clip" id="title1" data-start="0.6" data-duration="{{T1_DUR}}">
+    <div class="en-sub">{{KW2_EN}}</div>
+    <div class="main">{{TITLE_MAIN}}</div>
+    <div class="zh-sub">{{TITLE_SUB}}</div>
+  </div>
+
+  <div class="compare-card clip" id="compare1" data-start="{{T2_START}}" data-duration="{{T2_DUR}}">
+    <div class="compare-item before"><div class="compare-label">BEFORE</div><div class="compare-value">{{CMP_BEFORE}}</div><div class="compare-desc">{{CMP_BEFORE_DESC}}</div></div>
+    <div class="compare-item now"><div class="compare-label">NOW</div><div class="compare-value">{{CMP_NOW}}</div><div class="compare-desc">{{CMP_NOW_DESC}}</div></div>
+  </div>
+
+  <div class="chart-wrap clip" id="chart1" data-start="{{T3_START}}" data-duration="{{T3_DUR}}">
+    <div class="chart-title">{{CHART_LABEL}}</div>
+    <div class="chart-bar"><div class="chart-bar-main" id="bar1"></div><div class="chart-number" id="num1">0%</div></div>
+  </div>
+
+  <div class="feature-grid clip" id="grid1" data-start="{{T4_START}}" data-duration="{{T4_DUR}}">
+    <div class="feature-card"><div class="feature-icon">{{GRID1_ICON}}</div><div class="feature-name">{{GRID1_NAME}}</div><div class="feature-desc">{{GRID1_DESC}}</div></div>
+    <div class="feature-card"><div class="feature-icon">{{GRID2_ICON}}</div><div class="feature-name">{{GRID2_NAME}}</div><div class="feature-desc">{{GRID2_DESC}}</div></div>
+    <div class="feature-card"><div class="feature-icon">{{GRID3_ICON}}</div><div class="feature-name">{{GRID3_NAME}}</div><div class="feature-desc">{{GRID3_DESC}}</div></div>
+    <div class="feature-card"><div class="feature-icon">{{GRID4_ICON}}</div><div class="feature-name">{{GRID4_NAME}}</div><div class="feature-desc">{{GRID4_DESC}}</div></div>
+  </div>
+
+  <div class="quote-card clip" id="quote1" data-start="{{T5_START}}" data-duration="{{T5_DUR}}">
+    <div class="quote-text">{{QUOTE_TEXT}}</div>
+    <div class="quote-author">— {{QUOTE_AUTHOR}}</div>
+  </div>
+
+  <div class="cta-wrap clip" id="cta1" data-start="{{T6_START}}" data-duration="{{T6_DUR}}">
+    <div class="cta-en">TAKE ACTION NOW</div>
+    <div class="cta-main">{{CTA_TEXT}}</div>
+    <div class="cta-sub">{{CTA_SUB}}</div>
+  </div>
+
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+window.__timelines={};const tl=gsap.timeline();window.__timelines["root"]=tl;
+tl.to('#dark-overlay',{opacity:1,duration:0.5,ease:'power2.out',overwrite:"auto"},0);
+tl.fromTo('#tag1',{opacity:0,x:-30},{opacity:1,x:0,duration:0.6,ease:'power3.out',overwrite:"auto"},0.3);
+tl.fromTo('#title1',{opacity:0,y:30},{opacity:1,y:0,duration:0.8,ease:'power3.out',overwrite:"auto"},0.6);
+tl.to('#title1',{opacity:0,y:-20,duration:0.5,ease:'power2.in',overwrite:"auto"},{{T1_END}});
+tl.to('#tag1',{opacity:0,duration:0.4,overwrite:"auto"},{{T1_END}});
+tl.to('#dark-overlay',{opacity:0,duration:0.4,overwrite:"auto"},{{T1_END}});
+tl.to('#dark-overlay',{opacity:1,duration:0.4,overwrite:"auto"},{{T2_START}});
+tl.fromTo('#compare1',{opacity:0,y:40},{opacity:1,y:0,duration:0.7,ease:'power3.out',overwrite:"auto"},{{T2_START}});
+tl.fromTo('.compare-item.before',{opacity:0,x:-30},{opacity:1,x:0,duration:0.5,overwrite:"auto"},{{T2_START}});
+tl.fromTo('.compare-item.now',{opacity:0,x:30},{opacity:1,x:0,duration:0.5,overwrite:"auto"},{{T2_START}});
+tl.to('#compare1',{opacity:0,y:-20,duration:0.5,overwrite:"auto"},{{T2_END}});
+tl.to('#dark-overlay',{opacity:0,duration:0.4,overwrite:"auto"},{{T2_END}});
+tl.to('#dark-overlay',{opacity:1,duration:0.4,overwrite:"auto"},{{T3_START}});
+tl.fromTo('#chart1',{opacity:0,y:30},{opacity:1,y:0,duration:0.6,ease:'power3.out',overwrite:"auto"},{{T3_START}});
+tl.to('#bar1',{width:'{{CHART_PCT}}%',duration:1.2,ease:'power2.out',overwrite:"auto"},{{T3_START}});
+tl.to('#num1',{textContent:'{{CHART_NUM}}',duration:1.2,snap:{textContent:1},ease:'power2.out',overwrite:"auto"},{{T3_START}});
+tl.to('#chart1',{opacity:0,duration:0.4,overwrite:"auto"},{{T3_END}});
+tl.to('#dark-overlay',{opacity:0,duration:0.4,overwrite:"auto"},{{T3_END}});
+tl.to('#dark-overlay',{opacity:1,duration:0.4,overwrite:"auto"},{{T4_START}});
+tl.fromTo('#grid1',{opacity:0,y:30},{opacity:1,y:0,duration:0.6,ease:'power3.out',overwrite:"auto"},{{T4_START}});
+tl.fromTo('.feature-card',{opacity:0,y:20,scale:0.95},{opacity:1,y:0,scale:1,duration:0.4,stagger:0.12,ease:'power2.out',overwrite:"auto"},{{T4_START}});
+tl.to('#grid1',{opacity:0,duration:0.4,overwrite:"auto"},{{T4_END}});
+tl.to('#dark-overlay',{opacity:0,duration:0.4,overwrite:"auto"},{{T4_END}});
+tl.to('#dark-overlay',{opacity:1,duration:0.4,overwrite:"auto"},{{T5_START}});
+tl.fromTo('#quote1',{opacity:0,x:-40},{opacity:1,x:0,duration:0.7,ease:'power3.out',overwrite:"auto"},{{T5_START}});
+tl.to('#quote1',{opacity:0,duration:0.5,overwrite:"auto"},{{T5_END}});
+tl.to('#dark-overlay',{opacity:0,duration:0.3,overwrite:"auto"},{{T5_END}});
+tl.to('#dark-overlay',{opacity:1,duration:0.4,overwrite:"auto"},{{T6_START}});
+tl.fromTo('#cta1',{opacity:0,y:40},{opacity:1,y:0,duration:0.7,ease:'power3.out',overwrite:"auto"},{{T6_START}});
+</script>
+</body>
+</html>
