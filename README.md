@@ -20,32 +20,13 @@ AI自动识别关键词生成特效的桌面视频应用。
 - OpenAI Whisper (Python)
 - ffmpeg 视频处理
 
-## 快速开始
+## 安装使用
 
-### macOS
-
-```bash
-# 下载 Release 中的 DMG 安装包
-# 或者从源码运行
-npm install
-npm start
-```
-
-### Windows
-
-```bash
-# 双击 setup.bat 安装依赖
-# 双击 start.bat 启动
-```
-
-## 使用流程
-
-1. 选择模式（口播加特效 / 配字幕特效）
-2. 导入视频
-3. 粘贴口播文案 → AI分析生成特效
-4. 预览确认
-5. 导出视频
+1. 下载 [Release](https://github.com/CC-Diary/ai-video-assistant/releases) 中的 DMG 安装包
+2. 双击安装，拖入 Applications
+3. 打开软件，填写 API Key（左侧设置栏）
+4. 拖入视频 → AI分析 → 预览 → 导出
 
 ## License
 
-MIT
+私有项目，保留所有权利。未经作者许可，禁止复制、修改或分发。
